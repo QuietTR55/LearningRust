@@ -1,39 +1,44 @@
 use std::{rc::Rc, sync::{Arc, Mutex}, thread, ptr::null};
 use GameObjectManager::GameObjectManager::GameObject;
+use GameObjectManager::GameObjectManager::GObjectManager;
 use GameObjectIdManager::IdManager::{GObjectIdManager};
-use std::thread::*;
-
-use crate::GameObjectManager::GameObjectManager::GObjectManager;
 
 mod GameObjectIdManager;
 mod GameObjectManager;
 
 fn main() {
+    println!("creating id manager");
     let mut id_manager = GObjectIdManager::default();
-    let mut shared_id_manager = Arc::new(Mutex::new(id_manager));
-    
-    let thread = thread::spawn(||{
-        let testing_string : String = String::from("This is my testing string");
-        println!("Testing string is {}", testing_string);
-        let mut loop_index : i32 = 0;
-    });
-    
-    thread.join().unwrap();
+    println!("creating shared id manager");
 
-    println!("Second testing string");
+    let mut shared_id_manager = Arc::new(Mutex::new(id_manager));
+    println!("creating game global references");
+
+    let mut game_global_references = GameGlobalReferences{
+        game_object_id_manager: Box::new(GObjectIdManager::default()),
+        game_object_manager: Box::new(GObjectManager::default()),
+    };
+    
+    println!("creating shared game global references");
+
+    let shared_global_references = Arc::new(Mutex::new(game_global_references));
+    
+    println!("creating a new game object");
+    let created_game_object = shared_global_references.lock().unwrap().create_game_object();
+
+    println!("created game object with id {}", created_game_object.object_id);
+
 }
 
 pub struct GameGlobalReferences{
-    pub game_object_id_manager : Option<Arc<Mutex<GObjectIdManager>>>,
-    pub game_object_manager : Option<Arc<Mutex<GObjectManager>>>
+    pub game_object_id_manager : Box<GObjectIdManager>,
+    pub game_object_manager : Box<GObjectManager>,
 }
 
-impl Default for GameGlobalReferences{
-    fn default() -> GameGlobalReferences{
-        GameGlobalReferences{
-            game_object_id_manager : None,
-            game_object_manager : None,
-        }
+impl GameGlobalReferences{
+
+    fn create_game_object (&mut self) -> Box<GameObject>{
+        return (self.game_object_manager).create_new_game_object(&mut self.game_object_id_manager);
     }
 }
 
